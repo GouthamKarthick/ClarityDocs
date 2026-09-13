@@ -5,5 +5,11 @@ coverage-final.json
 clover.xml
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/logs/*
+!backend/logs/.gitkeep
+backend/eng.traineddata
+*.traineddata
+backend/fixtures/*
+!backend/fixtures/.gitkeep
 */.env
 mysql_data
