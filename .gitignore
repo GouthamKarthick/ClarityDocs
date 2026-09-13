@@ -1,0 +1,9 @@
+*/node_modules
+*/dist
+*/coverage
+coverage-final.json
+clover.xml
+backend/uploads/*
+!backend/uploads/.gitkeep
+*/.env
+mysql_data

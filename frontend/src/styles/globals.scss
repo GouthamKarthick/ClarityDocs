@@ -1,0 +1,65 @@
+@use "./variables" as *;
+
+:root {
+  --color-bg: #{$color-bg};
+  --color-surface: #{$color-surface};
+  --color-border: #{$color-border};
+  --color-border-strong: #{$color-border-strong};
+  --color-text: #{$color-text};
+  --color-text-muted: #{$color-text-muted};
+  --color-text-faint: #{$color-text-faint};
+  --color-primary: #{$color-primary};
+  --color-primary-hover: #{$color-primary-hover};
+  --color-primary-soft: #{$color-primary-soft};
+  --color-success: #{$color-success};
+  --color-warning: #{$color-warning};
+  --color-error: #{$color-error};
+  --color-hover: #{$color-hover};
+  --color-hover-strong: #{$color-hover-strong};
+  --radius-sm: #{$radius-sm};
+  --radius-md: #{$radius-md};
+  --radius-lg: #{$radius-lg};
+  --radius-pill: #{$radius-pill};
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --shadow-lg: #{$shadow-lg};
+  --font-sans: #{$font-sans};
+  --font-mono: #{$font-mono};
+  --content-max: #{$content-max};
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: $font-sans;
+  background: $color-bg;
+  color: $color-text;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: $color-primary;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+::selection { background: $color-primary-soft; }
+
+.container {
+  max-width: $content-max;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.page {
+  max-width: $content-max;
+  margin: 2rem auto;
+  padding: 0 20px;
+}
+.card {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+}

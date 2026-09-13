@@ -1,0 +1,15 @@
+@use "../../styles/variables" as *;
+@use "../../styles/mixins" as *;
+
+.badge {
+  @include pill-base;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+
+  &-neutral { background: #f3f4f6; color: #374151; border-color: $color-border; }
+  &-info { background: $color-primary-soft; color: #1d4ed8; border-color: #bfdbfe; }
+  &-success { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+  &-warning { background: #fefce8; color: #a16207; border-color: #fde68a; }
+  &-error { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  &-type { background: #f8fafc; color: #334155; border-color: #e2e8f0; }
+}

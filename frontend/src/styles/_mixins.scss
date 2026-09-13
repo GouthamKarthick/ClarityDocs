@@ -1,0 +1,79 @@
+@use "./variables" as *;
+
+// Focus ring — reused in Input, Select, dropzone
+@mixin focus-ring {
+  border-color: $color-primary;
+  box-shadow: 0 0 0 3px $color-primary-soft;
+}
+
+// Card shell — reused in Upload card, Detail card, List filters
+@mixin card($padding: 20px, $radius: $radius-lg) {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius;
+  box-shadow: $shadow-sm;
+  padding: $padding;
+}
+
+// Pill toggle base — reused in Menu item & DocumentList toggle
+@mixin pill-toggle {
+  padding: 5px 10px;
+  border-radius: $radius-pill;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+// Single-line truncate
+@mixin truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Flex center
+@mixin flex-center($gap: 8px) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $gap;
+}
+
+// Dashed empty state — reused in DocumentList empty/skeleton
+@mixin dashed-box {
+  padding: 32px;
+  text-align: center;
+  background: $color-surface;
+  border: 1px dashed $color-border;
+  border-radius: $radius-lg;
+  color: $color-text-muted;
+}
+
+@mixin card-base {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+}
+
+@mixin pill-base {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: $radius-pill;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  border: 1px solid transparent;
+}
+
+@mixin interactive-hover {
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+@mixin page-narrow {
+  max-width: 720px;
+  margin: 0 auto;
+}

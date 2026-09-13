@@ -1,0 +1,28 @@
+@use "../../styles/variables" as *;
+
+.heading {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: $color-text;
+  line-height: 1.2;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  &-h1 { font-size: 28px; }
+  &-h2 { font-size: 22px; }
+  &-h3 { font-size: 17px; font-weight: 600; }
+
+  &-muted {
+    font-size: 13px;
+    font-weight: 500;
+    color: $color-text-muted;
+    letter-spacing: 0;
+    background: $color-surface;
+    border: 1px solid $color-border;
+    padding: 2px 8px;
+    border-radius: $radius-pill;
+  }
+}

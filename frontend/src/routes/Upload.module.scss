@@ -1,0 +1,36 @@
+@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+@use "../styles/mixins" as *;
+
+.upload {
+  &-card {
+    @include card-base;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  &-form { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
+  &-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 28px 20px;
+    border: 2px dashed $color-border-strong;
+    border-radius: $radius-lg;
+    background: #fcfcfc;
+    cursor: pointer;
+    text-align: center;
+    @include interactive-hover;
+    &:hover { border-color: $color-primary; background: $color-primary-soft; }
+    &:focus-within { @include focus-ring; }
+  }
+  &-file-input { display: none; }
+  &-drop-text { font-size: 14px; font-weight: 600; color: $color-text; }
+  &-drop-hint { font-size: 12px; color: $color-text-muted; }
+  &-actions { display: flex; gap: 8px; align-items: center; }
+}

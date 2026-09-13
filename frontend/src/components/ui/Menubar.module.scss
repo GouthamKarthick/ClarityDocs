@@ -1,0 +1,67 @@
+@use "../../styles/variables" as *;
+
+.menubar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: $color-surface;
+  border-bottom: 1px solid $color-border;
+  backdrop-filter: blur(6px);
+
+  &-inner {
+    max-width: $content-max;
+    margin: 0 auto;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  &-brand {
+    font-weight: 700;
+    font-size: 16px;
+    color: $color-text;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.02em;
+  }
+
+  &-logo {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: $color-text;
+    color: #fff;
+    border-radius: $radius-md;
+    font-size: 14px;
+  }
+
+  &-nav { display: flex; gap: 6px; align-items: center; }
+
+  &-link {
+    padding: 7px 12px;
+    border-radius: $radius-md;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    color: $color-text-muted;
+    transition: background 0.15s, color 0.15s;
+    &:hover { background: $color-hover; color: $color-text; text-decoration: none; }
+  }
+
+  &-active {
+    padding: 7px 12px;
+    border-radius: $radius-md;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    background: $color-primary;
+    color: #fff;
+    &:hover { background: $color-primary-hover; color: #fff; }
+  }
+}

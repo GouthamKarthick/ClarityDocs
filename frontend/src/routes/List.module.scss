@@ -1,0 +1,43 @@
+@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+
+.list {
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  &-view-toggle {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    background: #f1f5f9;
+    border-radius: $radius-pill;
+    border: 1px solid $color-border;
+  }
+  &-toggle {
+    @include pill-toggle;
+    background: transparent;
+    color: $color-text-muted;
+    &:hover { background: $color-surface; color: $color-text; }
+    &--active {
+      @include pill-toggle;
+      background: $color-surface;
+      color: $color-text;
+      border-color: $color-border;
+      box-shadow: $shadow-sm;
+    }
+  }
+  &-filters {
+    @include card-base;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+}
