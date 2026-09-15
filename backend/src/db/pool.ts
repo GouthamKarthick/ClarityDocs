@@ -10,7 +10,9 @@ function getSslConfig():
   if (!config.db.ssl) return undefined;
   // 1) Env var with cert content (for Render) — paste whole -----BEGIN CERTIFICATE-----
   if (config.db.sslCa) {
-    return { ca: config.db.sslCa.replace(/\\n/g, "\n"), rejectUnauthorized: true };
+    const ca = config.db.sslCa.replace(/\\n/g, "\n");
+    if (ca.includes("BEGIN CERTIFICATE")) return { ca, rejectUnauthorized: true };
+    // stray value (e.g., "true") — fall through to file check
   }
   // 2) File at DB_CA_PATH (default backend/ca.pem) — for local
   const candidates = [config.db.sslCaPath, "./ca.pem", "backend/ca.pem", path.join(process.cwd(), "ca.pem")];
@@ -22,7 +24,7 @@ function getSslConfig():
       }
     } catch {}
   }
-  // Fallback — Aiven requires SSL, try without CA (may fail, but allows connection if CA not yet downloaded)
+  // Fallback — let Node verify with system CAs; for Aiven custom CA this will fail, but avoids mysql2 offset error with empty ca
   return { rejectUnauthorized: true };
 }
 

@@ -14,7 +14,34 @@ if (!fs.existsSync(config.uploadDir)) {
 const app = createApp();
 
 async function start() {
-  await ensureSchema();
+  // Retry ensureSchema 3x with backoff — Aiven cold start / TLS handshake can transiently fail with ER_OUT_OF_RANGE offset error if DB is MariaDB vs MySQL mismatch
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await ensureSchema();
+      lastErr = null;
+      break;
+    } catch (e) {
+      lastErr = e;
+      const msg = (e as Error).message || String(e);
+      logger.error(`ensureSchema attempt ${attempt}/3 failed`, {
+        error: msg,
+        stack: (e as Error).stack?.slice(0, 800),
+        dbHost: config.db.host,
+        dbPort: config.db.port,
+        dbName: config.db.database,
+        dbSsl: config.db.ssl,
+        hint: msg.includes("offset") || msg.includes("Protocol mismatch") || msg.includes("5010")
+          ? "Check Aiven service type: this host returned MariaDB protocol 11 / mysql_old_password. Recreate as MySQL (not MariaDB) or reset password. Verify DB_HOST/DB_PORT/DB_CA_CERT in Render dashboard (no quotes)."
+          : undefined,
+      });
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
+  }
+  if (lastErr) {
+    logger.error("Failed to start server — DB unreachable", { error: (lastErr as Error).message });
+    process.exit(1);
+  }
   // 30-day hard delete: purge expired docs + files every 24h
   try {
     const { purgeExpired } = await import("./jobs/cleanup.js");
