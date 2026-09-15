@@ -39,8 +39,19 @@ async function start() {
     }
   }
   if (lastErr) {
-    logger.error("Failed to start server — DB unreachable", { error: (lastErr as Error).message });
-    process.exit(1);
+    logger.error("DB unreachable — starting API without DB (health will show db:down). Fix Aiven service type or DB_PASSWORD/DB_CA_CERT in Render dashboard, then redeploy.", {
+      error: (lastErr as Error).message,
+    });
+    // Start server anyway so Render health check passes and you can debug via /health
+    // Retry ensureSchema in background every 30s until it succeeds
+    setTimeout(function retry() {
+      ensureSchema()
+        .then(() => logger.info("ensureSchema retry succeeded — DB now reachable"))
+        .catch((e) => {
+          logger.warn("ensureSchema retry still failing", { error: (e as Error).message });
+          setTimeout(retry, 30000);
+        });
+    }, 10000);
   }
   // 30-day hard delete: purge expired docs + files every 24h
   try {
