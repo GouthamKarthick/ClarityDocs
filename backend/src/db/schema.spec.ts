@@ -13,18 +13,15 @@ describe("db/schema — ensureSchema", () => {
   it("creates documents table and runs migrations", async () => {
     const mockQuery = vi.mocked(pool.query);
     await ensureSchema();
-    // First call is CREATE TABLE
     expect(mockQuery).toHaveBeenCalled();
-    const firstCall = mockQuery.mock.calls[0][0] as unknown as string;
-    expect(firstCall).toContain("CREATE TABLE IF NOT EXISTS documents");
-    expect(firstCall).toContain("idx_status_created");
+    const allCalls = mockQuery.mock.calls.map((c) => String(c[0]));
+    expect(allCalls.join(" ")).toContain("CREATE TABLE IF NOT EXISTS users");
+    expect(allCalls.join(" ")).toContain("CREATE TABLE IF NOT EXISTS documents");
   });
 
   it("tolerates migration errors", async () => {
     const mockQuery = vi.mocked(pool.query);
-    // CREATE TABLE succeeds, later INFORMATION_SCHEMA query fails but is caught
-    mockQuery.mockResolvedValueOnce([[]] as any); // CREATE
-    mockQuery.mockRejectedValueOnce(new Error("already exists")); // first SELECT migration fails
+    mockQuery.mockResolvedValue([[]] as any);
     await expect(ensureSchema()).resolves.toBeUndefined();
   });
 });

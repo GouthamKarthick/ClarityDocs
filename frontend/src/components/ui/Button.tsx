@@ -10,8 +10,22 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
-export function Button({ variant = "primary", size = "md", children, className, disabled, ...rest }: Props) {
-  const cls = [styles.button, styles[`button-${variant}`], styles[`button-${size}`], className].filter(Boolean).join(" ");
+export function Button({
+  variant = "primary",
+  size = "md",
+  children,
+  className,
+  disabled,
+  ...rest
+}: Props) {
+  const cls = [
+    styles.button,
+    styles[`button-${variant}`],
+    styles[`button-${size}`],
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <button className={cls} disabled={disabled} {...rest}>
       {children}

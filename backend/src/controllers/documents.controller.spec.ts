@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../db/pool.js", () => ({ pool: { query: vi.fn() } }));
 vi.mock("../services/extraction.service.js", () => ({ extract: vi.fn() }));
 vi.mock("../services/dedup.service.js", () => ({ findDuplicateByContent: vi.fn() }));
-vi.mock("../services/queue.service.js", () => ({ enqueue: vi.fn() }));
 
 import { pool } from "../db/pool.js";
 import { extract } from "../services/extraction.service.js";
@@ -22,7 +21,7 @@ describe("controller — uploadDocument", () => {
 
   it("400 when no file", async () => {
     const res = mockRes();
-    await uploadDocument({} as any, res, vi.fn());
+    await uploadDocument({ user: { id: "test-user", email: "test@example.com" } } as any, res, vi.fn());
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
@@ -37,7 +36,7 @@ describe("controller — uploadDocument", () => {
     vi.mocked(extract).mockResolvedValue({ data: { vendor: "V", invoiceNumber: "INV1", totalAmount: 10, currency: "INR" }, confidence: 1, method: "regex", documentType: "invoice", documentTypeConfidence: 0.9 } as any);
     vi.mocked(findDuplicateByContent).mockResolvedValue({ duplicate: false } as any);
 
-    const req: any = { file: { filename: "550e8400-e29b-41d4-a716-446655440000-test.pdf", originalname: "test.pdf", path: "/tmp/test" } };
+    const req: any = { user: { id: "test-user", email: "test@example.com" }, file: { filename: "550e8400-e29b-41d4-a716-446655440000-test.pdf", originalname: "test.pdf", path: "/tmp/test" } };
     const res = mockRes();
     await uploadDocument(req, res, vi.fn());
     expect(res.status).toHaveBeenCalledWith(201);
@@ -50,7 +49,7 @@ describe("controller — uploadDocument", () => {
     vi.mocked(extract).mockResolvedValue({ data: { vendor: "V", invoiceNumber: "DUP", totalAmount: 10, currency: "USD" }, confidence: 1, method: "regex", documentType: "receipt", documentTypeConfidence: 0.85 } as any);
     vi.mocked(findDuplicateByContent).mockResolvedValue({ duplicate: true, duplicateOf: "existing-id" } as any);
 
-    const req: any = { file: { filename: "550e8400-e29b-41d4-a716-446655440000-dup.pdf", originalname: "dup.pdf", path: "/tmp/dup" } };
+    const req: any = { user: { id: "test-user", email: "test@example.com" }, file: { filename: "550e8400-e29b-41d4-a716-446655440000-dup.pdf", originalname: "dup.pdf", path: "/tmp/dup" } };
     const res = mockRes();
     await uploadDocument(req, res, vi.fn());
     expect(res.status).toHaveBeenCalledWith(409);
@@ -64,7 +63,7 @@ describe("controller — listDocuments / getDocument", () => {
   it("listDocuments handles q escape and document_type filter", async () => {
     const mockQuery = vi.mocked(pool.query);
     mockQuery.mockResolvedValueOnce([[{ cnt: 1 }]] as any).mockResolvedValueOnce([[{ id: "a", name: "x", data: null }]] as any);
-    const req: any = { query: {}, _pagination: { limit: 10, offset: 0, q: "100%_test", document_type: "invoice" } };
+    const req: any = { user: { id: "test-user", email: "test@example.com" }, query: {}, _pagination: { limit: 10, offset: 0, q: "100%_test", document_type: "invoice" } };
     const res: any = { json: vi.fn() };
     await listDocuments(req, res, vi.fn());
     expect(mockQuery).toHaveBeenCalled();
@@ -76,21 +75,21 @@ describe("controller — listDocuments / getDocument", () => {
 
   it("getDocument 400 invalid uuid", async () => {
     const res = mockRes();
-    await getDocument({ params: { id: "bad" } } as any, res, vi.fn());
+    await getDocument({ params: { id: "bad" }, user: { id: "test-user", email: "test@example.com" } } as any, res, vi.fn());
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it("getDocument 404 when not found", async () => {
     vi.mocked(pool.query).mockResolvedValue([[]] as any);
     const res = mockRes();
-    await getDocument({ params: { id: "550e8400-e29b-41d4-a716-446655440000" } } as any, res, vi.fn());
+    await getDocument({ params: { id: "550e8400-e29b-41d4-a716-446655440000" }, user: { id: "test-user", email: "test@example.com" } } as any, res, vi.fn());
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
   it("getDocument 200 returns parsed data", async () => {
     vi.mocked(pool.query).mockResolvedValue([[{ id: "550e8400-e29b-41d4-a716-446655440000", name: "x", data: JSON.stringify({ vendor: "V" }), status: "done" }]] as any);
     const res: any = { json: vi.fn(), status: vi.fn().mockReturnThis() };
-    await getDocument({ params: { id: "550e8400-e29b-41d4-a716-446655440000" } } as any, res, vi.fn());
+    await getDocument({ params: { id: "550e8400-e29b-41d4-a716-446655440000" }, user: { id: "test-user", email: "test@example.com" } } as any, res, vi.fn());
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ data: { vendor: "V" } }));
   });
 });

@@ -28,6 +28,11 @@ export const upload = multer({
       cb(new Error(`Invalid file type. Allowed: pdf, png, jpg`));
       return;
     }
+    // Block path traversal / XSS in filename
+    if (file.originalname.includes("..") || /[<>]/.test(file.originalname) || file.originalname.length > 255) {
+      cb(new Error(`Suspicious file name — not saved`));
+      return;
+    }
     cb(null, true);
   },
 });

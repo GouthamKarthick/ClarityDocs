@@ -1,5 +1,13 @@
 export type DocumentStatus = "pending" | "processing" | "done" | "failed";
-export type DocumentType = "invoice" | "receipt" | "payment" | "bill" | "payslip" | "settlement_slip" | "other" | "unknown";
+export type DocumentType =
+  | "invoice"
+  | "receipt"
+  | "payment"
+  | "bill"
+  | "payslip"
+  | "settlement_slip"
+  | "other"
+  | "unknown";
 
 export interface ExtractedInvoiceData {
   vendor?: string;

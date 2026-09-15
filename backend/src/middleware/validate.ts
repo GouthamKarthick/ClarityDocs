@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Request, Response, NextFunction } from "express";
+import { isSuspicious } from "../utils/security.js";
 
 export const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -16,6 +17,11 @@ export const listQuerySchema = z.object({
 });
 
 export function validatePagination(req: Request, _res: Response, next: NextFunction) {
+  const rawQ = (req.query.q as string) || "";
+  if (rawQ && isSuspicious(rawQ)) {
+    next({ status: 400, message: "Suspicious input detected in search — not saved", code: "SUSPICIOUS_INPUT" });
+    return;
+  }
   const parsed = listQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     const err: unknown = parsed.error;

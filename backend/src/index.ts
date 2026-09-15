@@ -15,10 +15,19 @@ const app = createApp();
 
 async function start() {
   await ensureSchema();
+  // 30-day hard delete: purge expired docs + files every 24h
+  try {
+    const { purgeExpired } = await import("./jobs/cleanup.js");
+    await purgeExpired();
+    setInterval(() => purgeExpired().catch((e) => logger.warn("purgeExpired failed", { error: (e as Error).message })), 24 * 60 * 60 * 1000);
+    // node-cron fallback at 02:00
+    import("node-cron").then((cron) => {
+      cron.default.schedule("0 2 * * *", () => purgeExpired().catch((e) => logger.warn("cron purge failed", { error: (e as Error).message })));
+    }).catch(() => {});
+  } catch {}
   app.listen(config.port, () => {
-    logger.info(`API listening on http://localhost:${config.port} (mode=${config.extractionMode})`, {
+    logger.info(`API listening on http://localhost:${config.port}`, {
       port: config.port,
-      mode: config.extractionMode,
       aiProvider: config.ai.provider,
     });
   });

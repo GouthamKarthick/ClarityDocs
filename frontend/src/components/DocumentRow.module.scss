@@ -7,42 +7,70 @@
   align-items: center;
   gap: 16px;
   padding: 14px 16px;
-  background: $color-surface;
-  border: 1px solid $color-border;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: $radius-md;
   text-decoration: none;
-  color: inherit;
+  color: var(--color-text);
   @include interactive-hover;
 
   &:hover {
-    background: $color-hover;
-    border-color: $color-border-strong;
-    box-shadow: $shadow-sm;
+    background: var(--color-hover);
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
     text-decoration: none;
   }
-  &:active { transform: translateY(1px); }
-  &:focus-visible { outline: 2px solid $color-primary; outline-offset: 2px; }
 
-  &-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  &:active { 
+    transform: translateY(1px); 
+  }
+
+  &:focus-visible { 
+    outline: 2px solid var(--color-primary); 
+    outline-offset: 2px; 
+  }
+
+  &-main { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 6px; 
+    min-width: 0; 
+  }
+
   &-name {
     font-size: 14px;
     font-weight: 600;
-    color: $color-text;
+    color: var(--color-text);
     @include truncate;
   }
-  &-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+  &-meta { 
+    display: flex; 
+    gap: 6px; 
+    flex-wrap: wrap; 
+    align-items: center;
+  }
+
   &-date-col {
     text-align: right;
     min-width: 110px;
-    border-left: 1px solid $color-border;
+    border-left: 1px solid var(--color-border);
     padding-left: 16px;
+    color: var(--color-text-muted);
   }
+
   &-chevron {
-    color: $color-text-faint;
+    color: var(--color-text-faint);
     font-size: 18px;
     line-height: 1;
     padding-left: 4px;
   }
-  &:hover &-chevron { color: $color-text-muted; }
-  &:hover &-name { color: $color-primary; }
+
+  &:hover &-chevron { 
+    color: var(--color-primary); 
+  }
+
+  &:hover &-name { 
+    color: var(--color-primary); 
+  }
 }

@@ -14,8 +14,11 @@ export function usePolling(id: string | null, intervalMs = 2000) {
     async function poll() {
       try {
         const d = await getDocument(id!);
+
         if (cancelled) return;
+
         setDoc(d);
+
         if (d.status === "done" || d.status === "failed") {
           if (timer.current) window.clearInterval(timer.current);
           return;
@@ -28,6 +31,7 @@ export function usePolling(id: string | null, intervalMs = 2000) {
 
     poll();
     timer.current = window.setInterval(poll, intervalMs);
+    
     return () => {
       cancelled = true;
       if (timer.current) window.clearInterval(timer.current);

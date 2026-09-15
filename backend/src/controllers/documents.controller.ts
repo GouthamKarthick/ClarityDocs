@@ -1,12 +1,14 @@
 import type { Request, Response, NextFunction } from "express";
 import { randomUUID } from "crypto";
 import { pool } from "../db/pool.js";
-import { config } from "../config.js";
 import { logger } from "../config/logger.js";
 import { extract } from "../services/extraction.service.js";
 import { findDuplicateByContent } from "../services/dedup.service.js";
-import { enqueue } from "../services/queue.service.js";
 import { uuidSchema } from "../middleware/validate.js";
+
+import { getUser } from "../middleware/auth.js";
+import { getSummary as getSummaryData } from "../services/summary.service.js";
+import { generateSummaryPdf, generateSummaryCsv } from "../services/export.service.js";
 
 function parseDataField(row: { data: string | null }) {
   if (!row.data) return null;
@@ -19,9 +21,17 @@ function parseDataField(row: { data: string | null }) {
 
 export async function uploadDocument(req: Request, res: Response, next: NextFunction) {
   try {
+    const user = getUser(req);
+    if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
     const file = (req as unknown as { file?: Express.Multer.File }).file;
     if (!file) {
       res.status(400).json({ error: "No file uploaded. Field name must be 'file'." });
+      return;
+    }
+    // Block suspicious filenames / path traversal
+    const { isSuspicious } = await import("../utils/security.js");
+    if (isSuspicious(file.originalname)) {
+      res.status(400).json({ error: "Suspicious file name detected — not saved", code: "SUSPICIOUS_INPUT" });
       return;
     }
 
@@ -39,33 +49,28 @@ export async function uploadDocument(req: Request, res: Response, next: NextFunc
     })();
 
     const filePath = file.path; // e.g. ./uploads/<uuid>-name
+    const storedPath = filePath;
 
-    // Insert pending (document_type defaults to 'unknown', set properly after extraction)
+    // Insert pending (per-user isolation + 30-day expires_at default)
     try {
       await pool.query(
-        "INSERT INTO documents (id, name, path, status, document_type) VALUES (?, ?, ?, 'pending', 'unknown')",
-        [id, file.originalname, filePath]
+        "INSERT INTO documents (id, name, path, status, document_type, user_id) VALUES (?, ?, ?, 'pending', 'unknown', ?)",
+        [id, file.originalname, storedPath, user.id]
       );
     } catch (e: unknown) {
       const code = (e as { code?: string })?.code;
       if (code === "ER_DUP_ENTRY") {
         const newId = randomUUID();
-        await pool.query("INSERT INTO documents (id, name, path, status, document_type) VALUES (?, ?, ?, 'pending', 'unknown')", [
+        await pool.query("INSERT INTO documents (id, name, path, status, document_type, user_id) VALUES (?, ?, ?, 'pending', 'unknown', ?)", [
           newId,
           file.originalname,
-          filePath,
+          storedPath,
+          user.id,
         ]);
-        // use newId for remainder
-        if (config.extractionMode === "queue") {
-          // Phase2 path: would use s3Key, not filePath
-          await enqueue({ docId: newId, s3Key: filePath });
-          res.status(201).json({ id: newId, name: file.originalname, status: "pending", created_at: new Date().toISOString() });
-          return;
-        }
         await pool.query("UPDATE documents SET status='processing' WHERE id=?", [newId]);
         try {
           const result = await extract(filePath);
-          const dup2 = await findDuplicateByContent(result.data);
+          const dup2 = await findDuplicateByContent(result.data, user.id);
           if (dup2.duplicate) {
             await pool.query("UPDATE documents SET status='done', document_type=?, data=?, error=NULL WHERE id=?", [
               result.documentType,
@@ -102,24 +107,14 @@ export async function uploadDocument(req: Request, res: Response, next: NextFunc
 
     const [createdRows] = await pool.query("SELECT created_at FROM documents WHERE id=?", [id]);
     const created_at = (createdRows as Array<{ created_at: string }>)[0]?.created_at ?? new Date().toISOString();
-    logger.info("Document uploaded", { docId: id, name: file.originalname, path: filePath });
+    logger.info("Document uploaded", { docId: id, name: file.originalname, path: storedPath });
 
-    if (config.extractionMode === "queue") {
-      // Phase2 async
-      await pool.query("UPDATE documents SET status='pending' WHERE id=?", [id]);
-      // In Phase2 real impl, path would be S3 key; here we enqueue filePath as placeholder
-      await enqueue({ docId: id, s3Key: filePath });
-      res.status(201).json({ id, name: file.originalname, status: "pending", created_at });
-      return;
-    }
-
-    // Phase1 inline extraction
+    // Inline extraction
     await pool.query("UPDATE documents SET status='processing' WHERE id=?", [id]);
-    logger.info("Extraction started", { docId: id, mode: config.extractionMode });
+    logger.info("Extraction started", { docId: id });
     try {
       const result = await extract(filePath);
-      // Content duplicate check: 4 fields similar (invoice_number, vendor, totalAmount, currency) all non-null
-      const dup = await findDuplicateByContent(result.data);
+      const dup = await findDuplicateByContent(result.data, user.id);
       if (dup.duplicate) {
         await pool.query("UPDATE documents SET status='done', document_type=?, data=?, error=NULL WHERE id=?", [
           result.documentType,
@@ -166,6 +161,8 @@ export async function uploadDocument(req: Request, res: Response, next: NextFunc
 
 export async function listDocuments(req: Request, res: Response, next: NextFunction) {
   try {
+    const user = getUser(req);
+    if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
     const pagination = (req as unknown as Record<string, unknown>)._pagination as
       | { limit: number; offset: number; q?: string; document_type?: string }
       | undefined;
@@ -174,11 +171,10 @@ export async function listDocuments(req: Request, res: Response, next: NextFunct
     const q = pagination?.q?.trim() || undefined;
     const docType = pagination?.document_type || undefined;
 
-    const where: string[] = [];
-    const params: unknown[] = [];
+    const where: string[] = ["user_id = ?", "expires_at > NOW()"];
+    const params: unknown[] = [user.id];
     if (q) {
       where.push("name LIKE ?");
-      // escape % and _ for LIKE, wrap with % for contains search
       const escaped = q.replace(/[%_\\]/g, "\\$&");
       params.push(`%${escaped}%`);
     }
@@ -191,7 +187,7 @@ export async function listDocuments(req: Request, res: Response, next: NextFunct
     const [totalRows] = await pool.query(`SELECT COUNT(*) as cnt FROM documents ${whereSql}`, params);
     const total = (totalRows as Array<{ cnt: number }>)[0]?.cnt ?? 0;
     const [rows] = await pool.query(
-      `SELECT id, name, path, status, document_type, data, error, created_at, updated_at FROM documents ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT id, name, path, status, document_type, data, error, created_at, updated_at, expires_at FROM documents ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
     const documents = (rows as Array<Record<string, unknown>>).map((r) => ({
@@ -206,6 +202,8 @@ export async function listDocuments(req: Request, res: Response, next: NextFunct
 
 export async function getDocument(req: Request, res: Response, next: NextFunction) {
   try {
+    const user = getUser(req);
+    if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
     const id = req.params.id;
     const parsed = uuidSchema.safeParse(id);
     if (!parsed.success) {
@@ -213,8 +211,8 @@ export async function getDocument(req: Request, res: Response, next: NextFunctio
       return;
     }
     const [rows] = await pool.query(
-      "SELECT id, name, path, status, document_type, data, error, created_at, updated_at FROM documents WHERE id=?",
-      [id]
+      "SELECT id, name, path, status, document_type, data, error, created_at, updated_at, expires_at FROM documents WHERE id=? AND user_id=? AND expires_at > NOW()",
+      [id, user.id]
     );
     const row = (rows as Array<Record<string, unknown>>)[0];
     if (!row) {
@@ -225,4 +223,32 @@ export async function getDocument(req: Request, res: Response, next: NextFunctio
   } catch (err) {
     next(err);
   }
+}
+
+export async function getSummary(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = getUser(req);
+    if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
+    const summary = await getSummaryData(user.id, 30);
+    res.json(summary);
+  } catch (err) { next(err); }
+}
+
+export async function exportSummary(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = getUser(req);
+    if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
+    const format = String(req.query.format || "pdf").toLowerCase();
+    if (format === "csv") {
+      const csv = await generateSummaryCsv(user.id);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename=claritydocs-summary-${new Date().toISOString().slice(0, 10)}.csv`);
+      res.send(csv);
+      return;
+    }
+    const pdf = await generateSummaryPdf(user.id);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=claritydocs-summary-${new Date().toISOString().slice(0, 10)}.pdf`);
+    res.send(pdf);
+  } catch (err) { next(err); }
 }

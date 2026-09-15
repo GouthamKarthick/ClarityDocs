@@ -5,4 +5,7 @@ uploads/*
 logs/*
 !logs/.gitkeep
 .env
+ca.pem
+*.pem
+certs/
 

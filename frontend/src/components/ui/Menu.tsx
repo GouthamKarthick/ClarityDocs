@@ -27,7 +27,9 @@ export function Menu({ items, value, onChange, ariaLabel }: Props) {
             key={item.value || "__all"}
             role="tab"
             aria-selected={active}
-            className={active ? styles['menu-item--active'] : styles['menu-item']}
+            className={
+              active ? styles["menu-item--active"] : styles["menu-item"]
+            }
             onClick={() => onChange(item.value)}
             type="button"
           >
@@ -40,11 +42,17 @@ export function Menu({ items, value, onChange, ariaLabel }: Props) {
 }
 
 // Also export a generic dropdown-style Menu for future use
-export function DropdownMenu({ trigger, children }: { trigger: ReactNode; children: ReactNode }) {
+export function DropdownMenu({
+  trigger,
+  children,
+}: {
+  trigger: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <div className={styles['menu-dropdown']}>
-      <div className={styles['menu-trigger']}>{trigger}</div>
-      <div className={styles['menu-panel']} role="menu">
+    <div className={styles["menu-dropdown"]}>
+      <div className={styles["menu-trigger"]}>{trigger}</div>
+      <div className={styles["menu-panel"]} role="menu">
         {children}
       </div>
     </div>

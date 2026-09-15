@@ -15,4 +15,5 @@
   @include interactive-hover;
 
   &:focus { @include focus-ring; }
+  &:hover { border-color: $color-primary; }
 }

@@ -5,11 +5,17 @@
   @include pill-base;
   letter-spacing: 0.02em;
   text-transform: capitalize;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  line-height: 1.4;
 
-  &-neutral { background: #f3f4f6; color: #374151; border-color: $color-border; }
-  &-info { background: $color-primary-soft; color: #1d4ed8; border-color: #bfdbfe; }
-  &-success { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-  &-warning { background: #fefce8; color: #a16207; border-color: #fde68a; }
-  &-error { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
-  &-type { background: #f8fafc; color: #334155; border-color: #e2e8f0; }
+  &-neutral { background: $color-hover; color: $color-text-muted; border-color: $color-border; }
+  &-info { background: $color-primary-soft; color: $color-primary; border-color: $color-border; }
+  &-success { background: color-mix(in srgb, $color-success 12%, transparent); color: $color-success; border-color: color-mix(in srgb, $color-success 30%, transparent); }
+  &-warning { background: color-mix(in srgb, $color-warning 12%, transparent); color: $color-warning; border-color: color-mix(in srgb, $color-warning 30%, transparent); }
+  &-error { background: color-mix(in srgb, $color-error 12%, transparent); color: $color-error; border-color: color-mix(in srgb, $color-error 30%, transparent); }
+  &-type { background: $color-hover; color: $color-text-muted; border-color: $color-border; font-size: 10px; }
 }

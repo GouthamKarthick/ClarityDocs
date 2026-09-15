@@ -12,11 +12,13 @@ interface Props {
 
 export function Heading({ level = 2, children, muted, className }: Props) {
   const Tag = `h${level}` as "h1" | "h2" | "h3";
-  const cls = [styles.heading, styles[`heading-h${level}`], className].filter(Boolean).join(" ");
+  const cls = [styles.heading, styles[`heading-h${level}`], className]
+    .filter(Boolean)
+    .join(" ");
   return (
     <Tag className={cls}>
       {children}
-      {muted && <span className={styles['heading-muted']}>{muted}</span>}
+      {muted && <span className={styles["heading-muted"]}>{muted}</span>}
     </Tag>
   );
 }

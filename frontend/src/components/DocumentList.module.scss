@@ -2,13 +2,26 @@
 @use "../styles/mixins" as *;
 
 .document-list {
-  &-list { display: flex; flex-direction: column; gap: 8px; }
+  &-list { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 8px; 
+  }
+
   &-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    :global(a) { height: 100%; }
-    @media (max-width: 720px) { grid-template-columns: 1fr; }
+    :global(a) { 
+      height: 100%; 
+    }
+
+    @media (max-width: 720px) { 
+      grid-template-columns: 1fr; 
+    }
   }
-  &-empty, &-skeleton { @include dashed-box; }
+
+  &-empty, &-skeleton { 
+    @include dashed-box; 
+  }
 }

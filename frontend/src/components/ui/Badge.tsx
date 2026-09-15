@@ -9,6 +9,8 @@ interface Props {
 }
 
 export function Badge({ variant = "neutral", children, className }: Props) {
-  const cls = [styles.badge, styles[`badge-${variant}`], className].filter(Boolean).join(" ");
+  const cls = [styles.badge, styles[`badge-${variant}`], className]
+    .filter(Boolean)
+    .join(" ");
   return <span className={cls}>{children}</span>;
 }

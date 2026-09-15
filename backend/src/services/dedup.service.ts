@@ -34,17 +34,17 @@ function isDuplicateContent(a: ExtractedInvoiceData, b: ExtractedInvoiceData): b
 }
 
 export async function findDuplicateByContent(
-  newData: ExtractedInvoiceData
+  newData: ExtractedInvoiceData,
+  userId?: string
 ): Promise<{ duplicate: boolean; duplicateOf?: string; matchedData?: ExtractedInvoiceData }> {
   const av = normVendor(newData.vendor);
   const ai = normInvoiceNo(newData.invoiceNumber);
   const at = normTotal(newData.totalAmount);
   const ac = normCurrency(newData.currency);
   if (!av || !ai || at == null || !ac) return { duplicate: false };
-  // Fetch candidates with done status, compare in JS (no extra columns, keeps generalization)
-  const [rows] = await pool.query(
-    "SELECT id, data FROM documents WHERE status='done' AND data IS NOT NULL LIMIT 200"
-  );
+  const where = userId ? "WHERE status='done' AND data IS NOT NULL AND user_id=? AND expires_at > NOW() LIMIT 200" : "WHERE status='done' AND data IS NOT NULL AND expires_at > NOW() LIMIT 200";
+  const params = userId ? [userId] : [];
+  const [rows] = await pool.query(`SELECT id, data FROM documents ${where}`, params);
   for (const r of rows as Array<{ id: string; data: string }>) {
     try {
       const d = typeof r.data === "string" ? (JSON.parse(r.data) as ExtractedInvoiceData) : (r.data as unknown as ExtractedInvoiceData);

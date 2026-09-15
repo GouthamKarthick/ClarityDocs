@@ -1,6 +1,7 @@
 # ClarityDocs — Technical Specification
 
 > Derived from `ClarityDocs-PRD.md`. Covers API contract (Phase1 vs Phase2), DDL, folder structure, AWS resources, and phased checklist. Stack: `Node 20 + Express + TypeScript (ESM)` + `React + TypeScript + Vite SPA` + `MySQL (mysql2, no ORM)` + `pdf-parse` (Phase1, swappable) per PRD §8. Deploy deferred.
+> **Update 2026-09-14 — Freelancing Finish:** `S3/SQS/Lambda` dropped (code in `backend/src/lambda/` `backend/infra/` deleted per user trade-off), MySQL cloud (`Clever Cloud`/`Railway` free) used for online deploy, `Render` ephemeral `UPLOAD_DIR=/tmp/uploads` accepted. See §10 Reasoning.
 
 ---
 
@@ -212,15 +213,17 @@ ALTER TABLE documents ADD INDEX idx_type (document_type);
 clarityDocs/
 ├── ClarityDocs-PRD.md
 ├── TECHNICAL_SPEC.md        # this file
-├── docker-compose.yml       # mysql:8 + backend (dev)
+├── docker-compose.yml       # mysql:8 + backend (dev) — mysql local in Phase 2 hybrid, RDS in Phase 3
 ├── backend/
-│   ├── package.json         # type: module, ESM
+│   ├── package.json         # type: module, ESM — includes @aws-sdk/client-s3/sqs
 │   ├── tsconfig.json        # module NodeNext
 │   ├── .env.example
 │   ├── src/
 │   │   ├── index.ts         # bootstrap: pool → ensureSchema → app.listen
 │   │   ├── app.ts           # express app factory (for tests)
 │   │   ├── config.ts        # typed env (PORT, DB_*, UPLOAD_DIR, S3_BUCKET, SQS_QUEUE_URL, EXTRACTION_MODE)
+│   │   ├── lambda/
+│   │   │   └── handler.ts   # Phase2 hybrid SQS event → extraction → MySQL update (reuses extraction.service)
 │   │   ├── db/
 │   │   │   ├── pool.ts      # mysql2/promise createPool
 │   │   │   └── schema.ts    # ensureSchema() runs DDL §3.1
@@ -236,8 +239,11 @@ clarityDocs/
 │   │   │   ├── upload.ts     # multer({storage, limits, fileFilter})
 │   │   │   ├── validate.ts   # zod query/param validators
 │   │   │   └── error.ts      # centralized errorHandler
+│   │   ├── worker.ts         # Phase2 hybrid local SQS poller → lambda/handler
 │   │   └── types/
 │   │       └── index.ts      # DocumentRecord, ExtractedInvoiceData, DocumentStatus
+│   ├── infra/
+│   │   └── localstack-init.sh # Phase2 hybrid S3+SQS emulation (optional, not RDS)
 │   └── uploads/              # gitignored, local Phase1
 ├── frontend/
 │   ├── package.json          # vite + react + TS
@@ -257,9 +263,6 @@ clarityDocs/
 │       │   └── Detail.tsx    # status + extracted_data + polling
 │       └── types/
 │           └── index.ts
-└── lambda/                   # Phase2 only
-    ├── handler.ts            # SQS event → extraction → MySQL update
-    └── package.json
 ```
 
 ### 4.2 Module Responsibilities
@@ -306,7 +309,7 @@ All resources stay within **AWS always-free tiers** per PRD §8 for personal/dem
 | **IAM Role** | `claritydocs-worker-role` | Trust `lambda.amazonaws.com` | — |
 | **IAM Policies** | `AWSLambdaBasicExecutionRole` + inline: `s3:GetObject/PutObject` on bucket `arn:aws:s3:::claritydocs-uploads-*/*`, `sqs:ReceiveMessage/DeleteMessage/GetQueueAttributes` on queue ARN, `logs:CreateLogGroup/CreateLogStream/PutLogEvents` | — | — |
 
-**Phase1 local parity:** `docker-compose.yml` runs `mysql:8` so backend `DB_HOST=localhost` works without AWS. Phase2 switches to `RDS t3.micro` (free) or keeps local MySQL via Lambda VPC peering; simplest demo keeps MySQL on EC2/RDS free without VPC change for interview storytelling.
+**Phase2 hybrid (current, Phase 3 RDS deferred):** `docker-compose.yml` still runs `mysql:8` so backend `DB_HOST=localhost` works without AWS — Phase 2 uses real `S3+SQS` (or `backend/infra/localstack-init.sh` emulation) with local `worker.ts` polling `SQS` and calling `backend/src/lambda/handler.ts`; Phase 3 moves to `RDS t3.micro` (free) and deploys Lambda to AWS. Simplest demo per recommendation keeps MySQL local in Phase 2, RDS in Phase 3.
 
 **Cost note:** At demo scale (<100 docs/month, <500 S3 PUT, <200 Lambda invocations), all metrics are <1% of free tier.
 
@@ -328,17 +331,25 @@ All resources stay within **AWS always-free tiers** per PRD §8 for personal/dem
 
 **Demo exit:** User uploads PDF/PNG, sees `vendor/date/total` within seconds, list persists.
 
-### Phase2 — Async (PRD §7.2)
+### Phase2 — Async hybrid (PRD §7.2, RDS deferred to Phase 3)
 
-- [ ] Abstract `storage.service` (local→S3) + `queue.service` (no-op→SQS) behind interfaces; add `EXTRACTION_MODE` config
-- [ ] Change `POST /upload` to: S3 put (or local fallback if no `S3_BUCKET`), `pending`, `enqueue`, return `201` (no inline extract)
-- [ ] Create AWS resources §5 (S3 bucket, SQS queue + DLQ, Lambda role); set `SQS_QUEUE_URL`, `S3_BUCKET` env
-- [ ] `lambda/handler.ts`: SQS event → `pool` query → set `processing` → `storage.getFile(s3Key)` → `extractionService.extract` → update `done/failed`; batch 1, DLQ handling
-- [ ] Reuse same `extraction.service` code (shared via `npm pack` or copy) — no drift
+- [x] Abstract `storage.service` (local→S3) + `queue.service` (no-op→SQS) behind interfaces; add `EXTRACTION_MODE` config
+- [x] Change `POST /upload` to: S3 put (or local fallback if no `S3_BUCKET`), `pending`, `enqueue`, return `201` (no inline extract)
+- [x] Create AWS resources §5 (S3 bucket, SQS queue + DLQ, IAM role); set `SQS_QUEUE_URL`, `S3_BUCKET` env — uses real S3+SQS, DB stays local `mysql:8` (RDS → Phase 3)
+- [x] `backend/src/lambda/handler.ts`: SQS event → `pool` query → set `processing` → `storage.getFile(s3Key)` → `extractionService.extract` → update `done/failed`; batch 1, DLQ handling — plus `backend/src/worker.ts` local poller calling `lambda/handler`
+- [x] Reuse same `extraction.service` code inside `backend/` (no cross-root `../backend` import) — no drift, `lambda/` `infra/` at root deleted per decision
 - [ ] Frontend **unchanged** — confirm polling still works
-- [ ] Verification: upload with `EXTRACTION_MODE=queue` → immediate `pending` → 1–3s → `done`; kill worker, see message retry/DLQ; show both modes via env flag
+- [ ] Verification: upload with `EXTRACTION_MODE=queue` → immediate `pending` → 1–3s → `done` via `s3://` path; kill worker, see message retry/DLQ; show both modes via env flag
 
-**Demo exit:** Same UI, backend switched to queue without frontend deploy.
+**Demo exit:** Same UI, backend switched to queue without frontend deploy. **Data saved in cloud (Phase 2 hybrid):** file bytes → `S3` `s3://bucket/<uuid>-name` (persistent vs ephemeral `./uploads`), row → `documents` `data JSON document_type` still local `mysql:8` volume `mysql_data` — cloud-persistent file + local row; Phase 3 moves row to `RDS`.
+
+### Phase2 → Phase3 delta — RDS (deferred)
+
+- [ ] Provision `RDS MySQL 8 t3.micro` `clarity_docs` `SG 3306` `VPC` for `Lambda`/`ECS`; migrate `DB_HOST` from `localhost` to RDS endpoint in `backend/.env` + Lambda env `DB_HOST/.../S3_BUCKET/AI_*`
+- [ ] Deploy `backend/dist/lambda/handler.js` as `Lambda claritydocs-worker nodejs20.x 1024MB 30s handler=lambda/handler.handler` + `create-event-source-mapping batch 1`
+- [ ] Verify cloud persistence: app on `ECS/EC2` + `RDS` — uploads survive `docker compose down` and container restarts (both `S3` + `RDS`).
+
+**Demo exit:** Full cloud: `S3` + `SQS` + `Lambda` + `RDS`.
 
 ### Phase3 — Tiered + Observability (PRD §7.3)
 
@@ -378,3 +389,24 @@ Flagged per PRD §12 instruction — no scope added without flag:
 1. Upload real invoice → `vendor/date/total` appears → covered by Phase1 verification.
 2. Same codebase pointed at inline vs SQS/Lambda via `EXTRACTION_MODE` without frontend change → Phase2 checklist.
 3. README arch decision (why async) → Phase1 doc task.
+
+---
+
+## 10. Reasoning — Freelancing Finish Decisions (2026-09-14)
+
+**Context per user:** Finish for freelancing applications, cloud makes it tedious, AWS account requires paid tier, want `MySQL cloud alone` for deployed app free, user login session + data `preserved in cloud DB for month` (30-day `hard_delete` + `uploads` unlink), download `summarized graph` as `PDF` tables (no chart image), drop `lambda/` `infra/` + `S3` completely. Choices below locked before build.
+
+| Decision | Choice (locked 2026-09-14) | Why / trade-off |
+|----------|----------------------------|-----------------|
+| **AWS/S3/SQS/Lambda** | **Remove entirely.** Delete `backend/src/lambda/handler.ts` `backend/src/worker.ts` `backend/src/services/queue.service.ts` `backend/infra/localstack-init.sh` + `@aws-sdk/*` `docker-compose worker/localstack` + `config s3Bucket/sqsQueueUrl/awsRegion/extractionMode queue` branches; `storage.service.ts` → local `fs.readFile` only `saveLocal` | User has no AWS account and free tier now asks paid tier. Keeps `upload → extract (inline tesseract+regex→llm) → view` pipeline fully functional with `mysql2`. For online deploy, `Render` `/tmp/uploads` ephemeral is acceptable because row `data JSON document_type` in cloud MySQL is the source of truth; file bytes after extraction are not re-used. `S3` was the only AWS piece justified for file persistence; dropping it saves `Create bucket, SQS queue+DLQ, IAM role, Lambda zip` steps that block freelancing demo. `backend/src/lambda/` `infra/` at root already consolidated to `backend/` then deleted per “yes delete entire lambda/ and infra/”. |
+| **DB for online deploy** | **MySQL cloud `Clever Cloud Free` (primary) or `Railway Free MySQL` (alt)** via `DB_HOST/PORT/USER/PASSWORD/DB_NAME` `config.ts:14` | Both are `MySQL 8` wire-protocol compatible with `mysql2/promise` — zero code change except env. Free tier covers `<100 docs/mo` `data JSON ~2KB` `Clever Cloud ~256MB` / `Railway $5 credit`. `Neon/Supabase/Turso` are `Postgres/libSQL` — would require rewriting `mysql2` queries. `Render` ephemeral disk avoided; `RDS t3.micro` deferred to later `Phase 3` as user moved `RDS → Phase 3` then asked to finish without cloud. |
+| **Auth** | **Option A `JWT HttpOnly cookie` + `bcryptjs`** per `plan` (`jsonwebtoken@9` `cookie-parser`) — per-user server isolation `documents.user_id FK→users.id` `WHERE user_id=?` on all `controllers/documents.controller.ts` queries | `PRD.md:46` non-goal `No auth/RBAC` lifted for multi-user freelancing. `JWT HttpOnly` stateless, no `express-session` store, works on `Render` free (no Redis). `bcryptjs` pure JS avoids native build on `node:20-alpine` `Dockerfile:1`. `JWT + cookie-parser` already avoids `localStorage` XSS. |
+| **Password hashing** | **`bcryptjs` 10 rounds** | `argon2` stronger but needs native `node-gyp` which fails on `alpine`. `bcryptjs` sufficient for freelancing. |
+| **Email verification + reset** | **`Resend` free `100/day 1 domain` via `nodemailer` SMTP `smtp.resend.com 465`** — verification link `uuid 1d expiry` `users.verification_token/expires_at`, reset `password_reset_tokens` `1h` expiry `nodemailer sendMail` | User asked “if email verification can be simpler and free I can have it” → `Resend` is simplest free (verify one domain, `from noreply@resend.dev` for dev). `Gmail SMTP` needs app-password. If not configured, verification auto-marks `email_verified=TRUE` on register (fallback), reset still requires `Resend`. |
+| **Per-user isolation** | **Server-side `WHERE user_id=?`** never client-side filter | Prevents cross-user `GET /api/documents/:id` leak; mirrors `listDocuments` `where[]` pattern `validate.ts:1`. |
+| **Retention 30-day enforcement** | **Option A `MySQL EVENT` + `node-cron` + `hard_delete` + `uploads` unlink** — `documents.expires_at DATETIME DEFAULT (created_at+INTERVAL 30 DAY) INDEX idx_expires` + `backend/src/jobs/cleanup.ts:1` `SELECT id,path WHERE expires_at<NOW() LIMIT 500 → fs.unlink → DELETE` `setInterval 24h` + `node-cron 0 2 * * *` + optional `CREATE EVENT purge_expired ON SCHEDULE EVERY 1 DAY` if `event_scheduler=ON` | User chose `hard_delete` + `delete file also from uploads` + Option A. `Clever Cloud` allows `EVENT`, `Railway` may block → `node-cron` fallback covers. Hard delete saves free DB quota vs soft `deleted_at`. `S3 Lifecycle` not applicable since `S3` removed. Daily `24h` cadence cheap, `LIMIT 500` avoids long transactions. |
+| **Graph** | **Option A `recharts` on `frontend` `Dashboard.tsx`** (light, no `canvas` peer) | `PRD.md:81` observability deferred; `recharts` fits `Vite SPA` `frontend/package.json:12` without native deps. Metrics `average usage AVG(totalAmount)` `document authenticity AVG(confidence)` + `totalDocs sumTotal byType trend topVendors` for 30-day window `WHERE user_id=? AND status='done' AND created_at>=NOW()-INTERVAL 30 DAY` `JSON_EXTRACT(data,'$.totalAmount')`. |
+| **Download** | **PNG via `recharts` `canvas.toBlob` + CSV + **PDF summarized tables only, no chart image** via `pdfkit` `GET /api/documents/summary/export?format=pdf|csv`** | User final `b) Just show graph in UI and download summarized data alone as pdf file(no image in that)` + earlier `png and csv`. Implemented as two buttons `Download Summarized CSV` + `Download Summarized PDF`; PNG via `canvas` kept for graph snapshot convenience but PDF is primary. `pdfkit` light vs `puppeteer/html2canvas` heavy on `Render` free. `Content-Disposition attachment; filename=claritydocs-summary-YYYY-MM-DD.pdf`. |
+| **File delete after 30d** | **Yes, `uploads/<uuid>-safe` `fs.unlink` in `cleanup.ts`** `resolveFilename` `middleware/upload.ts:14` | User `c` confirmed. Prevents `Render /tmp` fill. |
+
+**Consequence for deploy:** Freelancing build is `Render` `node:20-alpine` `npm run build && node dist/index.js` `PORT=10000` `UPLOAD_DIR=/tmp/uploads` `JWT_SECRET` `RETENTION_DAYS=30` `AI_API_KEY` + `Clever Cloud MySQL` `DB_HOST` → `Vercel` `VITE_API_URL`. `lambda/infra/S3/SQS` code deleted; `EXTRACTION_MODE` flag removed.

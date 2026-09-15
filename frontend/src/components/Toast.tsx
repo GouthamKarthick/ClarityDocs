@@ -16,20 +16,34 @@ const bg: Record<ToastKind, string> = {
 
 export function useToast() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  function show(kind: ToastKind, message: string) {
-    const id = Math.random().toString(36).slice(2, 9);
+  const show = (kind: ToastKind, message: string) => {
+    const id = crypto.randomUUID();
     setToasts((t) => [...t, { id, kind, message }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3000);
-  }
+  };
   return { toasts, show, dismiss: (id: string) => setToasts((t) => t.filter((x) => x.id !== id)) };
 }
 
-export function ToastContainer({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss: (id: string) => void }) {
+export function ToastContainer({
+  toasts,
+  onDismiss,
+}: {
+  toasts: ToastItem[];
+  onDismiss: (id: string) => void;
+}) {
   if (toasts.length === 0) return null;
   return (
     <div
       aria-live="polite"
-      style={{ position: "fixed", top: 16, right: 16, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8 }}
+      style={{
+        position: "fixed",
+        top: 16,
+        right: 16,
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
     >
       {toasts.map((t) => (
         <div

@@ -10,8 +10,9 @@
   &-mono {
     font-family: $font-mono;
     font-size: 12.5px;
-    background: #f3f4f6;
+    background: $color-hover;
     border: 1px solid $color-border;
+    color: $color-text;
     padding: 2px 6px;
     border-radius: $radius-sm;
   }

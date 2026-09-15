@@ -25,20 +25,20 @@
     color: #fff;
     border-color: $color-primary;
     box-shadow: $shadow-sm;
-    &:hover:not(:disabled) { background: $color-primary-hover; border-color: $color-primary-hover; }
+    &:hover:not(:disabled) { background: $color-primary-hover; border-color: $color-primary-hover; color: #fff; }
     &:focus-visible { outline: 2px solid $color-primary; outline-offset: 2px; }
   }
   &-secondary {
     background: $color-surface;
     color: $color-text;
     border-color: $color-border-strong;
-    &:hover:not(:disabled) { background: $color-hover; }
+    &:hover:not(:disabled) { background: $color-hover; color: $color-text; border-color: $color-border-strong; }
   }
   &-ghost {
     background: transparent;
     color: $color-text;
     border-color: transparent;
-    &:hover:not(:disabled) { background: $color-hover; }
+    &:hover:not(:disabled) { background: $color-hover; color: $color-primary; }
   }
   &-danger {
     background: $color-error;

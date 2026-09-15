@@ -14,23 +14,42 @@ interface Props {
   filterLabel?: string;
 }
 
-export function DocumentList({ documents, view, loading, hasFilters, filterLabel }: Props) {
-
+export function DocumentList({
+  documents,
+  view,
+  loading,
+  hasFilters,
+  filterLabel,
+}: Props) {
   if (loading) {
-    return <div className={styles['document-list-skeleton']}><Text variant="muted">Loading…</Text></div>;
+    return (
+      <div className={styles["document-list-skeleton"]}>
+        <Text variant="muted">Loading…</Text>
+      </div>
+    );
   }
 
   if (documents.length === 0) {
     return (
-      <div className={styles['document-list-empty']}>
-        <Text variant="muted">{hasFilters ? `No documents matching "${filterLabel}"` : "No documents yet — upload your first invoice or receipt."}</Text>
+      <div className={styles["document-list-empty"]}>
+        <Text variant="muted">
+          {hasFilters
+            ? `No documents matching "${filterLabel}"`
+            : "No documents yet — upload your first invoice or receipt."}
+        </Text>
       </div>
     );
   }
 
   return (
     <div>
-      <div className={view === "grid" ? styles['document-list-grid'] : styles['document-list-list']}>
+      <div
+        className={
+          view === "grid"
+            ? styles["document-list-grid"]
+            : styles["document-list-list"]
+        }
+      >
         {documents.map((d) => (
           <DocumentRow key={d.id} doc={d} />
         ))}

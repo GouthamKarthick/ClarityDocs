@@ -10,8 +10,15 @@ interface Props {
   className?: string;
 }
 
-export function Text({ variant = "body", as = "p", children, className }: Props) {
+export function Text({
+  variant = "body",
+  as = "p",
+  children,
+  className,
+}: Props) {
   const Tag = as;
-  const cls = [styles.text, styles[`text-${variant}`], className].filter(Boolean).join(" ");
+  const cls = [styles.text, styles[`text-${variant}`], className]
+    .filter(Boolean)
+    .join(" ");
   return <Tag className={cls}>{children}</Tag>;
 }
