@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE = (import.meta.env.VITE_BACKEND_URL as string) || (import.meta.env.VITE_API_URL as string) || "";
 
 export async function register(email: string, password: string) {
   const res = await fetch(`${API_BASE}/api/auth/register`, {
