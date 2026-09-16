@@ -1,13 +1,17 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  // Allow backend URL in .env: VITE_API_URL=http://localhost:4000 or https://claritydocs.onrender.com
+  const apiTarget = env.VITE_API_URL || "http://localhost:4000";
+  return {
   plugins: [react()],
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:4000",
-      "/health": "http://localhost:4000",
+      "/api": apiTarget,
+      "/health": apiTarget,
     },
   },
   build: {
@@ -27,4 +31,5 @@ export default defineConfig({
   optimizeDeps: {
     include: ["react", "react-dom", "react-router-dom"],
   },
+};
 });
